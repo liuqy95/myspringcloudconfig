@@ -2,6 +2,7 @@
 	一、消息及缓存
 		1、规划安装rabbitmq，端口默认5672
 		2、规划安装redis集群6个节点，3主3从，端口6379、6380、6381、6382、6383、6384
+	
 	二、关于配置中心
 		1、eureka的配置信息目前只能放到项目中，对于其他项目引用eureka共性的配置信息，如eureka服务注册信息，目前只能放到各自项目的配置文件中。
 		2、配置中心configcenter的配置信息目前只能放到项目中
@@ -27,7 +28,7 @@
 		docker build -t springboot-configcenter:1.0 .
 		docker build -t springboot-zuulserver:1.0 .
 		
-	六、创建容器并运行
+	六、创建容器并运行（注意：如果想让服务异常关闭之后重启，可以增加创建容器的参数 “--restart=always”）
 		docker run -d --name wochu-eurekaserver1 -p 8761:8761 -e JAVA_OPTS="-Dspring.profiles.active=8761" springboot-eureka:1.0
 		docker run -d --name wochu-eurekaserver2 -p 8762:8762 -e JAVA_OPTS="-Dspring.profiles.active=8762" springboot-eureka:1.0
 		
@@ -40,7 +41,7 @@
 		
 		
 	七、监控相关
-		1、eureka监控界面上Renews threshold（Eureka Server 期望每分钟收到客户端实例续约的总数） 及 Renews (last min)（Eureka Server 最后 1 分钟收到客户端实例续约的总数）计算方式
+		eureka监控界面上Renews threshold（Eureka Server 期望每分钟收到客户端实例续约的总数） 及 Renews (last min)（Eureka Server 最后 1 分钟收到客户端实例续约的总数）计算方式
 		1）
 			this.expectedNumberOfRenewsPerMin = count * 2；count表示服务的数量，如果 Eureka Server 开启自注册模式，也算一个服务；
 			serverConfig.getRenewalPercentThreshold()为eureka server端配置的阈值，默认为0.85，可以通过eureka.server.renewal-percent-threshold配置；
@@ -48,5 +49,11 @@
 		2）
 			Renews (last min) = count * 2；数值 2 表示每 30 秒 1 个心跳，每分钟 2 个心跳的固定频率因子。
 		
-		在 1 分钟后 ，默认需等待 5 分钟（可以通过eureka.server.wait-time-in-ms-when-sync-empty配置）， 当Renews (last min) < Renews threshold时，会出现一下提示：
+		在 1 分钟后 ，默认需等待 5 分钟（可以通过eureka.server.wait-time-in-ms-when-sync-empty配置）， 当Renews (last min) <= Renews threshold时，会出现一下提示：
 		EMERGENCY! EUREKA MAY BE INCORRECTLY CLAIMING INSTANCES ARE UP WHEN THEY’RE NOT. RENEWALS ARE LESSER THAN THRESHOLD AND HENCE THE INSTANCES ARE NOT BEING EXPIRED JUST TO BE SAFE.
+		
+	八、hystrix超时时间和ribbon超时时间的设置
+		为了确保Ribbon重试的时候不被熔断，我们就需要让Hystrix的超时时间大于Ribbon的超时时间，否则Hystrix命令超时后，该命令直接熔断，重试机制就没有任何意义了。
+		一般情况下 hystrix的超时时间要大于 (1 + MaxAutoRetries + MaxAutoRetriesNextServer) * ReadTimeout 比较好，具体看需求进行配置。
+	
+	九、对于服务追踪调用链路（Zipkin）可以部署两种方式，一种是http协议通信，另外一种是采用socket通信协议
